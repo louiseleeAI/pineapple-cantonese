@@ -1,0 +1,9 @@
+{
+  "id": "pineapple-cantonese",
+  "name": "Pineapple Cantonese Listening",
+  "version": "1.2.0",
+  "minAppVersion": "1.5.0",
+  "description": "Listen to Cantonese podcasts sentence by sentence with automatic Jyutping, transcripts, word lookup, shadowing, spaced repetition, mistake review, and study stats.",
+  "author": "Louise",
+  "isDesktopOnly": true
+}

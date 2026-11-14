@@ -1,0 +1,17 @@
+{
+  "name": "pineapple-cantonese",
+  "version": "1.2.0",
+  "description": "Obsidian plugin for sentence-by-sentence Cantonese podcast listening with automatic Jyutping.",
+  "main": "main.js",
+  "private": true,
+  "license": "MIT",
+  "author": "Louise",
+  "keywords": ["obsidian", "obsidian-plugin", "cantonese", "jyutping", "listening", "podcast"],
+  "scripts": {
+    "check": "node --check main.js",
+    "bump": "node version-bump.mjs"
+  },
+  "engines": {
+    "node": ">=16"
+  }
+}

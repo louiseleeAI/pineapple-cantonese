@@ -1,0 +1,33 @@
+# 私人学习数据：绝不提交到公开仓库
+data.json
+data.json.bak
+data.json.*
+backups/
+cache/
+
+# 录音与媒体缓存
+*.wav
+*.webm
+*.mp3
+*.m4a
+*.ogg
+
+# 本地打包产物
+dist/
+*.zip
+
+# Python 可选增强的运行产物（模型文件很大，不入库）
+__pycache__/
+*.pyc
+*.onnx
+tokens.txt
+temp/
+
+# 编辑器 / 依赖
+.vscode/
+.idea/
+.DS_Store
+node_modules/
+
+# 说明：dict-yue.json 与 extras/*.py 是公开的可选增强资源，需要提交到仓库，
+# 供社区插件市场用户手动下载放置；插件本身不会自动下载它们。
