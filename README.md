@@ -80,6 +80,12 @@ Fexingo 的字幕是纯文本、没有时间轴。这种会在顶部提示「没
 
 不配也能正常用——听、读、查词、跟读、笔记都跑得动，只是没字幕的节目不会有逐句文本。
 
+设置页最上面的「可选增强状态」里有 **3 步配置**，并带「复制安装命令 / 下载 transcribe_yue.py / 模型下载页」三个按钮：
+
+1. `pip install sherpa-onnx av`（Python 3.10+，建议独立虚拟环境）
+2. 下载 [extras/transcribe_yue.py](https://raw.githubusercontent.com/louiseleeAI/pineapple-cantonese/main/extras/transcribe_yue.py)
+3. 下载 SenseVoice small int8（`model.int8.onnx` + `tokens.txt`）
+
 配置在 `设置 → 本地转写`，三个文件放在同一个目录：
 
 ```
@@ -186,6 +192,7 @@ python extras/check_rec.py 录音.wav --expect 1.4 --text "去边度食啊" \
 - 常听节目排行（花时间最多的源）
 - 24 小时收听生物钟环形图（晨读者 / 夜航者）
 - 小发现：听得最久的一天、凌晨还在听哪一集、哪集听了不止一遍
+- 盲听自测：点「测一次」，随机抽 3 句隐藏字幕播放，自评听懂 / 半懂 / 没懂，按周看「不开字幕听懂多少」
 - 底部汇总生词、易错词、错题数量
 
 数据存在插件 `data.json`，同时每月写一份 `{统计目录}/YYYY-MM.md` 表格，方便在库里回看。
