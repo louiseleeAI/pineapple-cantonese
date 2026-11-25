@@ -2,6 +2,19 @@
 
 粤语播客精听台。为粤语学习者做的 Obsidian 插件：**每句自动标粤拼**、逐句字幕跟随、点字查义、跟读录音、生词本、错题本、打卡统计与笔记沉淀。
 
+## English summary
+
+Pineapple Cantonese Listening is an Obsidian plugin for learning Cantonese from podcasts, with automatic Jyutping for every sentence.
+
+- **Install**: Settings → Community plugins → Browse → search `Pineapple Cantonese Listening` → Install → Enable, then click the ribbon icon.
+- **Jyutping**: every sentence is annotated automatically; click a word for Jyutping, pinyin and an English gloss. The 31k-entry dictionary is embedded in `main.js`, so lookup works right after a marketplace install.
+- **Listen**: click any sentence to play from there; single-sentence loop, speed control, auto-advance, and transcript search.
+- **Study**: spaced-repetition vocabulary, mistake notebook, shadowing with a coverage score, and a listening clock with blind-listening comprehension checks.
+- **Transcripts**: if a feed has no transcript, paste SRT/VTT or set up optional local ASR (sherpa-onnx SenseVoice) — Settings → Optional add-ons → three steps with copy/download buttons.
+- **Privacy**: feeds, transcripts, stats, recordings and notes stay in your vault. No telemetry, no account. Network access is only used to fetch feeds, audio and transcripts.
+
+Desktop only (local Python is used for ASR and TTS).
+
 ## 和英文版的区别
 
 | | 菠萝英语精读 | 菠萝粤语精听 |
