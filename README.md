@@ -93,7 +93,11 @@ Fexingo 的字幕是纯文本、没有时间轴。这种会在顶部提示「没
 
 不配也能正常用——听、读、查词、跟读、笔记都跑得动，只是没字幕的节目不会有逐句文本。
 
-设置页最上面的「可选增强状态」里有 **3 步配置**，并带「复制安装命令 / 下载 transcribe_yue.py / 模型下载页」三个按钮：
+**最简单：一键安装。** 到 `设置 → 第三方插件 → 菠萝粤语精听`，点最上面的「**一键安装本地转写**」，插件会在本机依次完成：检测 Python → 建独立虚拟环境 → 用清华源装 `sherpa-onnx` 与 `av` → 写入转写脚本 → 下载 SenseVoice 模型（约 240MB，走 hf-mirror）→ 自动填好路径并检测。全程有进度条，不上传任何音频或笔记。命令面板搜「一键安装本地转写」也能打开向导。
+
+需要本机先装 Python 3（[python.org](https://www.python.org/downloads/)，安装时勾选 Add Python to PATH）。装完的文件都在插件目录下 `asr/`，不会进笔记、不会被提交。
+
+手动配置也可以（适合已有 Python 环境的用户）：
 
 1. `pip install sherpa-onnx av`（Python 3.10+，建议独立虚拟环境）
 2. 下载 [extras/transcribe_yue.py](https://raw.githubusercontent.com/louiseleeAI/pineapple-cantonese/main/extras/transcribe_yue.py)
@@ -109,7 +113,7 @@ Fexingo 的字幕是纯文本、没有时间轴。这种会在顶部提示「没
 └── transcribe_yue.py    转写脚本（本仓库 extras/ 里）
 ```
 
-需要一个装了 `sherpa-onnx` 和 `av` 的 Python 3.10–3.12，模型可从 `hf-mirror.com/csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17` 取。
+模型可从 `hf-mirror.com/csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17` 取。
 
 ## 跟读录音与质量检查
 

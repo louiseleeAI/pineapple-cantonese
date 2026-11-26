@@ -4186,8 +4186,7 @@ class WelcomeModal extends Modal {
     el.createEl('h3', { text: '想开自动转写 / 跟读打分加速？' });
     el.createEl('p', {
       cls: 'er-hint',
-      text: '到 设置 → 第三方插件 → ' + name + '，最上面的「可选增强状态」里有 3 步配置：装依赖、放脚本、下模型，' +
-            '每步都带「复制命令」「下载脚本」「模型下载页」按钮，照着点完再点一次「检测」就行。不想配也完全不影响使用。',
+      text: '最简单：到 设置 → 第三方插件 → ' + name + '，点最上面的「一键安装本地转写」，插件会自动装好依赖、脚本和模型，全程在本机完成。不想配也完全不影响使用。',
     });
 
     const row = el.createDiv('er-welcome-btns');
@@ -4332,6 +4331,204 @@ const ASR_SETUP = {
   ],
 };
 
+/* ==================================================================
+   一键安装本地转写（粤语版 · sherpa-onnx SenseVoice）
+   社区市场只装三件套，故脚本以字符串内嵌；安装器在本机建 venv、
+   装依赖、下载模型并自动填好设置，全程不上传任何数据。
+   ================================================================== */
+/* >>> ASR_WIZARD_BEGIN */
+const ASR_WIZARD = {
+  pipIndex: 'https://pypi.tuna.tsinghua.edu.cn/simple',
+  pkgs: 'sherpa-onnx av',
+  modelFiles: [
+    ['tokens.txt', 315894, 'tokens.txt'],
+    ['model.int8.onnx', 239233841, 'model.int8.onnx'],
+  ],
+  mirrorBase: 'https://hf-mirror.com/csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17/resolve/main/',
+  script: "\"\"\"\u7ca4\u8bed\u8bed\u97f3\u8f6c\u5199\uff1asherpa-onnx + SenseVoice\uff08\u652f\u6301\u7ca4\u8bed yue\uff09\n\n\u7528\u6cd5\uff1a\n  python transcribe_yue.py <\u97f3\u9891> <\u8f93\u51fa.srt> <\u6a21\u578b\u76ee\u5f55> [\u7ebf\u7a0b\u6570]\n\n\u6a21\u578b\u76ee\u5f55\u9700\u5305\u542b model.int8.onnx \u4e0e tokens.txt\u3002\n\u8f93\u51fa SRT\uff08\u5e26\u5206\u6bb5\u65f6\u95f4\u6233\uff09\uff0c\u540c\u65f6\u628a\u8fdb\u5ea6\u6253\u5230 stdout \u7684 PROGRESS \u884c\u3002\n\"\"\"\nimport sys\nimport os\n\n# \u5fc5\u987b\u5728 import numpy / sherpa_onnx \u4e4b\u524d\u8bbe\u7f6e\uff1a\n# \u8fd9\u53f0\u673a\u5668\u7a7a\u95f2\u5185\u5b58\u5e38\u5e74\u4e0d\u5230 2GB\uff0cOpenBLAS \u4f1a\u6309\u7ebf\u7a0b\u6570\u9884\u5206\u914d\u7f13\u51b2\uff0c\n# \u7ebf\u7a0b\u4e00\u591a\u5c31\u5728\u52a0\u8f7d\u6a21\u578b\u65f6 \"Memory allocation still failed\"\u3002\nos.environ.setdefault(\"OPENBLAS_NUM_THREADS\", \"1\")\nos.environ.setdefault(\"OMP_NUM_THREADS\", \"1\")\nos.environ.setdefault(\"MKL_NUM_THREADS\", \"1\")\n\nimport numpy as np\n\n\ndef log(msg):\n    print(msg, flush=True)\n\n\ndef decode_audio(path, target_sr=16000):\n    \"\"\"\u7528 PyAV \u89e3\u7801\u4efb\u610f\u97f3\u9891\u4e3a 16k \u5355\u58f0\u9053 float32\"\"\"\n    import av\n\n    container = av.open(path)\n    stream = container.streams.audio[0]\n    resampler = av.AudioResampler(format=\"s16\", layout=\"mono\", rate=target_sr)\n    chunks = []\n    for frame in container.decode(stream):\n        for out in resampler.resample(frame):\n            arr = out.to_ndarray()\n            chunks.append(arr.reshape(-1))\n    container.close()\n    if not chunks:\n        return np.zeros(0, dtype=np.float32)\n    pcm = np.concatenate(chunks)\n    return (pcm.astype(np.float32) / 32768.0)\n\n\n\ndef split_canto_sentences(text):\n    \"\"\"\u6309\u4e2d\u6587\u6807\u70b9\u5206\u53e5\uff1b\u82f1\u6587\u53e5\u70b9\u8981\u6c42\u540e\u8ddf\u7a7a\u683c\uff0c\u907f\u514d\u5207\u574f\u7f29\u5199\"\"\"\n    import re\n    parts = re.split(r'(?<=[\u3002\uff01\uff1f\uff1b\u2026!?])|(?<=\\.)(?=\\s)', text)\n    out = []\n    for raw in parts:\n        t = raw.strip()\n        if not t:\n            continue\n        if out and len(out[-1]) <= 2:\n            out[-1] += t\n        else:\n            out.append(t)\n    return out\n\n\n\ndef split_long_clause(start, end, text):\n    \"\"\"\u8fc7\u957f\u7684\u4e00\u53e5\u6309\u9017\u53f7\u5207\u5f00\uff0c\u4f46\u6bcf\u7247\u81f3\u5c11 8 \u4e2a\u5b57\uff0c\u907f\u514d\u5207\u51fa\u300c\u4eca\u65e5\uff0c\u300d\u8fd9\u79cd\u788e\u7247\"\"\"\n    import re\n    raw = [x for x in re.split(r'(?<=[\uff0c,\uff1b;\uff1a:])', text) if x.strip()]\n    if len(raw) < 2:\n        return [(start, end, text)]\n    groups, buf = [], ''\n    for x in raw:\n        buf += x\n        if len(buf) >= 8:\n            groups.append(buf)\n            buf = ''\n    if buf:\n        if groups:\n            groups[-1] += buf\n        else:\n            groups.append(buf)\n    if len(groups) < 2:\n        return [(start, end, text)]\n    total = sum(max(1, len(x)) for x in groups) or 1\n    out, acc = [], start\n    dur = end - start\n    for i, x in enumerate(groups):\n        d = dur * max(1, len(x)) / total\n        seg_end = end if i == len(groups) - 1 else acc + d\n        out.append((acc, seg_end, x.strip()))\n        acc = seg_end\n    return out\n\n\ndef fmt_ts(seconds):\n    ms = int(round(seconds * 1000))\n    h, ms = divmod(ms, 3600000)\n    m, ms = divmod(ms, 60000)\n    s, ms = divmod(ms, 1000)\n    return f\"{h:02d}:{m:02d}:{s:02d},{ms:03d}\"\n\n\ndef main():\n    if len(sys.argv) < 4:\n        log(\"\u7528\u6cd5: transcribe_yue.py <\u97f3\u9891> <\u8f93\u51fa.srt> <\u6a21\u578b\u76ee\u5f55> [\u7ebf\u7a0b\u6570]\")\n        return 2\n    audio_path, srt_path, model_dir = sys.argv[1], sys.argv[2], sys.argv[3]\n    threads = int(sys.argv[4]) if len(sys.argv) > 4 else 4\n\n    model = os.path.join(model_dir, \"model.int8.onnx\")\n    tokens = os.path.join(model_dir, \"tokens.txt\")\n    if not os.path.exists(model):\n        log(\"ERROR \u627e\u4e0d\u5230\u6a21\u578b: \" + model)\n        return 3\n    if not os.path.exists(tokens):\n        log(\"ERROR \u627e\u4e0d\u5230 tokens.txt: \" + tokens)\n        return 3\n\n    log(\"PROGRESS 3  \u89e3\u7801\u97f3\u9891\")\n    samples = decode_audio(audio_path)\n    if samples.size == 0:\n        log(\"ERROR \u97f3\u9891\u89e3\u7801\u4e3a\u7a7a\")\n        return 4\n    duration = samples.size / 16000.0\n    log(f\"\u65f6\u957f {duration:.1f} \u79d2\")\n\n    import sherpa_onnx\n\n    log(\"PROGRESS 8  \u52a0\u8f7d\u6a21\u578b\")\n    recognizer = sherpa_onnx.OfflineRecognizer.from_sense_voice(\n        model=model,\n        tokens=tokens,\n        num_threads=threads,\n        use_itn=True,\n        language=\"yue\",\n        debug=False,\n    )\n\n    # VAD \u5207\u5206\u957f\u97f3\u9891\uff0c\u4fdd\u8bc1\u6bcf\u6bb5\u7684\u8d77\u6b62\u65f6\u95f4\u53ef\u7528\n    cfg = sherpa_onnx.VadModelConfig()\n    cfg.silero_vad.model = os.path.join(model_dir, \"silero_vad.onnx\")\n    cfg.silero_vad.min_silence_duration = 0.4\n    cfg.silero_vad.min_speech_duration = 0.25\n    cfg.silero_vad.window_size = 512\n    cfg.sample_rate = 16000\n\n    if not os.path.exists(cfg.silero_vad.model):\n        log(\"WARN \u7f3a silero_vad.onnx\uff0c\u6539\u4e3a\u6574\u6bb5\u8bc6\u522b\")\n        stream = recognizer.create_stream()\n        stream.accept_waveform(16000, samples)\n        recognizer.decode_stream(stream)\n        text = stream.result.text.strip()\n        cues = [(0.0, duration, text)] if text else []\n    else:\n        vad = sherpa_onnx.VoiceActivityDetector(cfg, buffer_size_in_seconds=120)\n        window = 512\n        cues = []\n        last_end = 0.0\n        pos = 0\n        total = samples.size\n        while pos < total:\n            chunk = samples[pos:pos + window]\n            pos += window\n            if chunk.size < window:\n                chunk = np.pad(chunk, (0, window - chunk.size))\n            vad.accept_waveform(chunk)\n            while not vad.empty():\n                seg = vad.front\n                start = seg.start / 16000.0\n                dur = len(seg.samples) / 16000.0\n                stream = recognizer.create_stream()\n                stream.accept_waveform(16000, np.array(seg.samples, dtype=np.float32))\n                recognizer.decode_stream(stream)\n                text = stream.result.text.strip()\n                if text:\n                    cues.append((start, start + dur, text))\n                last_end = start + dur\n                vad.pop()\n            pct = 10 + int(85 * pos / total)\n            if pos % (window * 400) == 0:\n                log(f\"PROGRESS {min(pct, 95)}\")\n        vad.flush()\n        while not vad.empty():\n            seg = vad.front\n            start = seg.start / 16000.0\n            dur = len(seg.samples) / 16000.0\n            stream = recognizer.create_stream()\n            stream.accept_waveform(16000, np.array(seg.samples, dtype=np.float32))\n            recognizer.decode_stream(stream)\n            text = stream.result.text.strip()\n            if text:\n                cues.append((start, start + dur, text))\n            vad.pop()\n\n    if not cues:\n        log(\"ERROR \u6ca1\u6709\u8bc6\u522b\u5230\u8bed\u97f3\")\n        return 5\n\n    # 1) \u5148\u5408\u5e76\u8fc7\u77ed\u7684\u7247\u6bb5\uff08VAD \u5076\u5c14\u628a\u4e00\u53e5\u8bdd\u5207\u788e\uff09\n    pieces = []\n    for start, end, text in cues:\n        if pieces:\n            ps, pe, pt = pieces[-1]\n            if (start - pe) < 0.45 and len(pt) < 24:\n                pieces[-1] = (ps, end, pt + text)\n                continue\n        pieces.append((start, end, text))\n\n    # 2) \u518d\u6309\u6807\u70b9\u5207\u6210\u53e5\u5b50\u7ea7\uff1aASR \u7684 VAD \u6bb5\u5e38\u6709\u5341\u51e0\u4e8c\u5341\u79d2\uff0c\n    #    \u9010\u53e5\u7cbe\u542c\u9700\u8981\u66f4\u7ec6\u7684\u7c92\u5ea6\uff0c\u6309\u5b57\u6570\u628a\u65f6\u95f4\u5206\u644a\u5230\u6bcf\u53e5\n    merged = []\n    for start, end, text in pieces:\n        spans = split_canto_sentences(text) or [text]\n        total_chars = sum(max(1, len(x)) for x in spans) or 1\n        dur = end - start\n        acc = start\n        for i, sp in enumerate(spans):\n            share = max(1, len(sp)) / total_chars\n            seg_dur = dur * share\n            seg_end = end if i == len(spans) - 1 else acc + seg_dur\n            # \u5355\u53e5\u8d85\u8fc7 12 \u79d2\uff08\u8ddf\u8bfb\u592a\u957f\uff09\u5c31\u5728\u9017\u53f7\u5904\u518d\u5207\u4e00\u5200\n            if seg_end - acc > 12 and (\"\uff0c\" in sp or \",\" in sp):\n                for s2, e2, t2 in split_long_clause(acc, seg_end, sp):\n                    merged.append((s2, e2, t2))\n            else:\n                merged.append((acc, seg_end, sp))\n            acc = seg_end\n\n    with open(srt_path, \"w\", encoding=\"utf-8\") as f:\n        for i, (start, end, text) in enumerate(merged, 1):\n            f.write(f\"{i}\\n{fmt_ts(start)} --> {fmt_ts(end)}\\n{text}\\n\\n\")\n\n    log(\"PROGRESS 100\")\n    log(f\"DONE {len(merged)} \u53e5 / {duration:.0f} \u79d2\u97f3\u9891\")\n    return 0\n\n\nif __name__ == \"__main__\":\n    sys.exit(main())\n",
+};
+
+function asrWizardUrl(file) { return ASR_WIZARD.mirrorBase + file; }
+
+function asrWizardDetectPython() {
+  const { spawnSync } = require('child_process');
+  const tries = [['python', ['--version']], ['python3', ['--version']], ['py', ['-3', '--version']]];
+  const out = [];
+  for (const [exe, args] of tries) {
+    try {
+      const r = spawnSync(exe, args, { encoding: 'utf8', timeout: 8000 });
+      const ver = ((r.stdout || '') + (r.stderr || '')).trim();
+      if (r.status === 0 && /Python\s+3\.\d+/.test(ver)) return { exe, version: ver };
+      if (ver) out.push(exe + ': ' + ver.slice(0, 60));
+    } catch (e) { /* 继续试下一个 */ }
+  }
+  return { error: out.join(' | ') || '没找到 Python 3' };
+}
+
+function asrWizardDownload(url, dest, onBytes) {
+  return new Promise((resolve, reject) => {
+    const https = require('https');
+    const fs = require('fs');
+    const fetch = (u, redirects) => {
+      if (redirects > 5) return reject(new Error('下载重定向过多'));
+      https.get(u, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (res) => {
+        if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+          res.resume(); return fetch(res.headers.location, redirects + 1);
+        }
+        if (res.statusCode !== 200) { res.resume(); return reject(new Error('HTTP ' + res.statusCode)); }
+        const tmp = dest + '.part';
+        const file = fs.createWriteStream(tmp);
+        let got = 0;
+        res.on('data', (chunk) => { got += chunk.length; if (onBytes) onBytes(got, Number(res.headers['content-length'] || 0)); });
+        res.on('error', (e) => { try { file.close(); } catch (_) {} reject(e); });
+        file.on('error', (e) => { res.destroy(); reject(e); });
+        res.pipe(file);
+        file.on('finish', () => file.close(() => {
+          try { fs.renameSync(tmp, dest); resolve(got); } catch (e) { reject(e); }
+        }));
+      }).on('error', reject);
+    };
+    fetch(url, 0);
+  });
+}
+
+function asrWizardRun(exe, args, opts, onLine) {
+  return new Promise((resolve, reject) => {
+    const { spawn } = require('child_process');
+    const child = spawn(exe, args, opts || {});
+    let tail = '';
+    const push = (buf) => {
+      const s = String(buf || '');
+      tail = (tail + s).slice(-4000);
+      const lines = tail.split(/\r?\n/);
+      tail = lines.pop() || '';
+      for (const line of lines) if (onLine) onLine(line.trim());
+    };
+    child.stdout && child.stdout.on('data', push);
+    child.stderr && child.stderr.on('data', push);
+    child.on('error', reject);
+    child.on('close', (code) => {
+      if (onLine && tail.trim()) onLine(tail.trim());
+      if (code === 0) resolve(tail); else reject(new Error('命令退出码 ' + code));
+    });
+  });
+}
+
+class AsrWizardModal extends Modal {
+  constructor(app, plugin) {
+    super(app);
+    this.plugin = plugin;
+    this.cancelled = false;
+    this.child = null;
+  }
+
+  onOpen() {
+    const el = this.contentEl;
+    el.empty();
+    el.addClass('er-wizard');
+    el.createEl('h2', { text: '一键安装本地转写' });
+    el.createEl('p', { cls: 'er-wizard-lead',
+      text: '全程在本机完成：装 Python 依赖、下载脚本与模型，不上传任何音频或笔记。约 240 MB 下载，首次几分钟。' });
+    this.statusEl = el.createEl('div', { cls: 'er-wizard-status', text: '准备就绪，点下面开始。' });
+    this.bar = el.createEl('div', { cls: 'er-wizard-bar' });
+    this.barFill = this.bar.createDiv({ cls: 'er-wizard-bar-fill' });
+    this.logEl = el.createEl('div', { cls: 'er-wizard-log' });
+    const btns = el.createDiv({ cls: 'er-wizard-btns' });
+    this.startBtn = btns.createEl('button', { cls: 'mod-cta', text: '开始安装' });
+    this.startBtn.onclick = () => this.run();
+    this.cancelBtn = btns.createEl('button', { text: '取消' });
+    this.cancelBtn.onclick = () => { this.cancelled = true; if (this.child) { try { this.child.kill(); } catch (_) {} } this.status('已取消。'); };
+    this.doneBtn = btns.createEl('button', { text: '完成' });
+    this.doneBtn.onclick = () => this.close();
+    this.doneBtn.style.display = 'none';
+  }
+
+  status(s) { if (this.statusEl) this.statusEl.textContent = s; }
+  log(s) {
+    if (!this.logEl) return;
+    this.logEl.createDiv({ cls: 'er-wizard-line', text: String(s).slice(0, 300) });
+    this.logEl.scrollTop = this.logEl.scrollHeight;
+  }
+  pct(p) { if (this.barFill) this.barFill.style.width = Math.max(0, Math.min(100, p)) + '%'; }
+
+  async run() {
+    if (this.busy) return;
+    this.busy = true;
+    this.cancelled = false;
+    this.startBtn.disabled = true;
+    this.logEl.empty();
+    const fs = require('fs');
+    const path = require('path');
+    try {
+      this.status('① 检测 Python…'); this.pct(5);
+      const py = asrWizardDetectPython();
+      if (!py || !py.exe) throw new Error('没找到 Python 3。请先到 python.org 下载安装（安装时勾选 Add Python to PATH），装完再点开始。' + (py && py.error ? '\n' + py.error : ''));
+      this.log('Python：' + py.exe + '（' + py.version + '）');
+
+      const base = path.join(this.plugin.manifest.dir || '.', 'asr');
+      fs.mkdirSync(base, { recursive: true });
+
+      this.status('② 创建独立环境…'); this.pct(15);
+      const venv = path.join(base, '.venv');
+      const pyInVenv = (process.platform === 'win32')
+        ? path.join(venv, 'Scripts', 'python.exe')
+        : path.join(venv, 'bin', 'python');
+      if (!fs.existsSync(pyInVenv)) {
+        await asrWizardRun(py.exe, ['-m', 'venv', venv], {}, (l) => this.log(l));
+      }
+      if (this.cancelled) throw new Error('已取消');
+      this.log('虚拟环境：' + pyInVenv);
+
+      this.status('③ 安装依赖（清华源，约 1-2 分钟）…'); this.pct(30);
+      await asrWizardRun(pyInVenv, ['-m', 'pip', 'install', '-i', ASR_WIZARD.pipIndex, 'sherpa-onnx', 'av'],
+        {}, (l) => this.log(l));
+      if (this.cancelled) throw new Error('已取消');
+
+      this.status('④ 写入转写脚本…'); this.pct(48);
+      fs.writeFileSync(path.join(base, 'transcribe_yue.py'), ASR_WIZARD.script, 'utf8');
+      this.log('脚本：' + (base + '/transcribe_yue.py').replace(/\\/g, '/'));
+
+      this.status('⑤ 下载模型（约 240 MB）…');
+      for (let i = 0; i < ASR_WIZARD.modelFiles.length; i++) {
+        if (this.cancelled) throw new Error('已取消');
+        const [name, , dest] = ASR_WIZARD.modelFiles[i];
+        const target = path.join(base, dest);
+        if (!fs.existsSync(target)) {
+          this.log('下载 ' + name + '…');
+          await asrWizardDownload(asrWizardUrl(name), target, (got, total) => {
+            const basePct = 48 + Math.round((i + (total ? got / total : 0)) / ASR_WIZARD.modelFiles.length * 42);
+            this.pct(basePct);
+            if (total) this.status('⑤ 下载模型 ' + name + ' ' + Math.round(got / total * 100) + '%');
+          });
+        }
+      }
+      if (this.cancelled) throw new Error('已取消');
+
+      this.status('⑥ 保存设置并检测…'); this.pct(92);
+      this.plugin.data.settings.asrDir = base.replace(/\\/g, '/');
+      this.plugin.data.settings.asrPython = pyInVenv.replace(/\\/g, '/');
+      await this.plugin.save();
+      const r = await this.plugin.checkWhisper();
+      if (!r.ok) throw new Error('安装完成但检测未通过：' + (r.err || '未知原因'));
+
+      this.status('✓ 安装完成！没有字幕的节目现在可以点「本地转写这一集」了。');
+      this.log('就绪：' + r.exe);
+      this.pct(100);
+      new Notice('✓ 本地转写安装完成，可以开始使用了');
+    } catch (e) {
+      const msg = String((e && e.message) || e);
+      this.status('安装失败：' + msg.split('\n')[0]);
+      this.log('错误：' + msg.replace(/\n/g, ' | '));
+      new Notice('本地转写安装失败：' + msg.split('\n')[0], 10000);
+    } finally {
+      this.busy = false;
+      if (this.startBtn) { this.startBtn.disabled = false; this.startBtn.setText('重试'); }
+      if (this.doneBtn) this.doneBtn.style.display = '';
+    }
+  }
+}
+/* <<< ASR_WIZARD_END */
+
 class CantoneseSettingTab extends PluginSettingTab {
   constructor(app, plugin) {
     super(app, plugin);
@@ -4365,6 +4562,11 @@ class CantoneseSettingTab extends PluginSettingTab {
       text: '粤语词典已内联，市场安装即可查词。其余是可选增强：从仓库 extras/ 手动放置脚本并在下方填路径，' +
             '插件不会自动下载或安装依赖。听、粤拼、切词、查义、生词、错题、统计、录音均不依赖它们。',
     });
+    const quick = addBox.createEl('div', { cls: 'er-addons-quick' });
+    quick.createEl('div', { cls: 'er-addons-quick-title', text: '不想折腾？用一键安装：' });
+    quick.createEl('button', { cls: 'mod-cta er-install-btn', text: '一键安装本地转写' }).onclick = () => {
+      new AsrWizardModal(this.app, this.plugin).open();
+    };
     if (!add.asrConfigured) {
       const help = addBox.createEl('div', { cls: 'er-addons-help' });
       help.createEl('div', { cls: 'er-addons-help-title', text: '本地转写怎么配（3 步，可选）' });
@@ -4678,6 +4880,11 @@ class CantonesePlugin extends Plugin {
       id: 'open-reader',
       name: '打开菠萝粤语精听',
       callback: () => this.activateView(),
+    });
+    this.addCommand({
+      id: 'install-asr',
+      name: '一键安装本地转写（可选）',
+      callback: () => new AsrWizardModal(this.app, this).open(),
     });
     this.addCommand({
       id: 'refresh-feeds',
@@ -6434,6 +6641,7 @@ module.exports.__statModal = StatModal;
 module.exports.__stats = { mistakeKey, statSeries, monthStat, heatmapWeeks };
 module.exports.__listen = { mergeHours, topShows, listenDiscoveries, clockLabel, ringSlice, rideText, renderClockRing };
 module.exports.__asrSetup = ASR_SETUP;
+module.exports.__asrWizard = { ASR_WIZARD, AsrWizardModal, asrWizardUrl, asrWizardDetectPython };
 module.exports.__blind = { pickBlindSegs, segSpan, blindRatio, blindWeeks, BLIND_MIN_SENTENCES };
 module.exports.__blindModal = BlindModal;
 module.exports.__shadow = { scoreShadow, shadowTokens, lcsPairs };
