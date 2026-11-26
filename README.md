@@ -95,7 +95,7 @@ Fexingo 的字幕是纯文本、没有时间轴。这种会在顶部提示「没
 
 **最简单：一键安装。** 到 `设置 → 第三方插件 → 菠萝粤语精听`，点最上面的「**一键安装本地转写**」，插件会在本机依次完成：检测 Python → 建独立虚拟环境 → 用清华源装 `sherpa-onnx` 与 `av` → 写入转写脚本 → 下载 SenseVoice 模型（约 240MB，走 hf-mirror）→ 自动填好路径并检测。全程有进度条，不上传任何音频或笔记。命令面板搜「一键安装本地转写」也能打开向导。
 
-需要本机先装 Python 3（[python.org](https://www.python.org/downloads/)，安装时勾选 Add Python to PATH）。装完的文件都在插件目录下 `asr/`，不会进笔记、不会被提交。
+需要本机先装 Python 3（[python.org](https://www.python.org/downloads/)，安装时勾选 Add Python to PATH）。装完的文件放在系统应用数据目录 `pineapple-asr/pineapple-cantonese/`（Windows 在 `%LOCALAPPDATA%`，macOS 在 `~/Library/Application Support`，Linux 在 `~/.local/share`），不在插件目录里——Obsidian 更新插件时不会冲掉环境，也不会进笔记。
 
 手动配置也可以（适合已有 Python 环境的用户）：
 
