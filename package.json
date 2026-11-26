@@ -1,6 +1,6 @@
 {
   "name": "pineapple-cantonese",
-  "version": "1.5.5",
+  "version": "1.5.6",
   "description": "Obsidian plugin for sentence-by-sentence Cantonese podcast listening with automatic Jyutping.",
   "main": "main.js",
   "private": true,
