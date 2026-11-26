@@ -2136,7 +2136,8 @@ class CantoneseReaderView extends ItemView {
       });
       if (showTime) t.onclick = (e) => { e.stopPropagation(); this.seek(s.start || 0); };
       const main = row.createDiv('er-seg-main');
-      main.createSpan({ cls: 'er-seg-text', text: s.text });
+      const segText = main.createSpan({ cls: 'er-seg-text' });
+      segText.createSpan({ cls: 'er-seg-ink', text: s.text });
       if (this.data.settings.showJyutping) {
         const jp = jyutLine(s.text);
         if (jp) main.createDiv({ cls: 'er-seg-jyut', text: jp });
