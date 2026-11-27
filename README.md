@@ -310,6 +310,15 @@ Obsidian 社区插件市场只会下载 `main.js`、`manifest.json`、`styles.cs
 - [SenseVoice](https://github.com/FunAudioLLM/SenseVoice)（阿里 FunAudioLLM，经 sherpa-onnx 运行）、[edge-tts](https://github.com/rany2/edge-tts)：由用户自行安装，不在插件内分发。
 - 预置订阅源里的播客版权归各自作者；插件只读取公开 RSS，不托管、不转载其内容。
 
+## 反馈与支持
+
+遇到报错、功能异常，或想提建议，可以直接提交 GitHub Issue：
+
+- [报告问题 / 提建议](https://github.com/louiseleeAI/pineapple-cantonese/issues/new?template=bug_report.md) —— 从插件里的「反馈」按钮进入时，会自动带上插件版本、Obsidian 版本和系统信息，省去手写。
+- [讨论区](https://github.com/louiseleeAI/pineapple-cantonese/discussions) —— 配置请教、使用心得、一般性问题。
+
+插件设置页顶部和精听视图工具栏的右侧都有「反馈」入口（气泡图标），点一下就能打开，不需要记仓库地址。
+
 ## 已知限制
 
 - **粤语发音主用 edge-tts**（需要 Python 环境，见下节），失败时回落 Google `tl=yue`；两者都不通才会报错，原声与粤拼不受影响
